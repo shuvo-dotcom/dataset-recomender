@@ -15,7 +15,7 @@ from langchain.chains import create_history_aware_retriever
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-
+from translator import load_model_and_tokenizer, translate
 load_dotenv()
 ASTRA_DB_API_ENDPOINT = os.getenv("ASTRA_DB_API_ENDPOINT")
 ASTRA_DB_APPLICATION_TOKEN = os.getenv("ASTRA_DB_APPLICATION_TOKEN")
@@ -35,26 +35,25 @@ def extract_info(soup):
         } for eachHead in soup.find_all("div", {"class": "dataset-content"})
     ]
 
-url_list = ["https://catalog.data.gov/dataset?res_format=XML"]
-final_doc = []
-for eachPage in url_list:
-    r = requests.get(eachPage)
-    soup = BeautifulSoup(r.content, 'html.parser')
-    final_doc += extract_info(soup)
-
-df = pd.DataFrame(final_doc)
-
-docs = [Document(page_content=obj['description'], metadata={'title': obj['title']}) for obj in final_doc]
+def scrapper():
+    url_list = ["https://catalog.data.gov/dataset?res_format=XML"]
+    final_doc = []
+    for eachPage in url_list:
+        r = requests.get(eachPage)
+        soup = BeautifulSoup(r.content, 'html.parser')
+        final_doc += extract_info(soup)
+    df = pd.DataFrame(final_doc)
+    docs = [Document(page_content=obj['description'], metadata={'title': obj['title']}) for obj in final_doc]
+    return docs
 
 embeddings = HuggingFaceInferenceAPIEmbeddings(api_key=HF_TOKEN, model_name="BAAI/bge-base-en-v1.5")
 vstore = AstraDBVectorStore(
     embedding=embeddings,
-    collection_name="datasetAggregator",
+    collection_name="datasetaggregator",
     api_endpoint=ASTRA_DB_API_ENDPOINT,
-    token=ASTRA_DB_APPLICATION_TOKEN,
-    namespace=ASTRA_DB_KEYSPACE
+    token=ASTRA_DB_APPLICATION_TOKEN
 )
-vstore.add_documents(docs)
+# vstore.add_documents(scrapper())
 
 model = ChatGroq(groq_api_key=GROQ_API, model="llama-3.1-70b-versatile", temperature=0.5)
 retriever_prompt = ("Given a chat history and the latest user question which might reference context in the chat history, "
@@ -112,7 +111,14 @@ def chat():
         {"input": user_input},
         config={"configurable": {"session_id": session_id}},
     )["answer"]
-    return jsonify(response)
+    lang = request.json['language']
+    print(lang)
+    if lang!='en':
+        model_en_hi, tokenizer_en_hi = load_model_and_tokenizer('en', lang)
+        translated_hi = translate(model_en_hi, tokenizer_en_hi, response)
+        return jsonify(translated_hi)
+    else:
+        return jsonify(response)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

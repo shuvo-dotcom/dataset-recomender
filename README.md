@@ -129,6 +129,4 @@ For questions or suggestions, reach out to:
 
 ---  
 
-Happy Recommending! 😊  
-
-Let me know if you'd like further refinements!
+Happy Recommending! 😊 

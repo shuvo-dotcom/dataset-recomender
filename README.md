@@ -1,5 +1,5 @@
 ## Cross-Language Personalization for Dataset Selection Using BAAI
-General Embedding**  
+General Embedding  
 
 This repository provides a **Dataset Recommender System** that uses Flask for a web interface, LangChain for dataset recommendations, and integrates with **Astra DB**, **Groq API**, Hugging Face models, and a custom **translation module** for multilingual support.  
 
